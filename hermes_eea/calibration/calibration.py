@@ -30,6 +30,7 @@ from spacepy.pycdf import lib
 from hermes_eea.calibration.build_spectra import Hermes_EEA_Data_Processor
 from astropy.time import Time
 
+
 __all__ = [
     "process_file",
     "parse_l0_sci_packets",
@@ -40,6 +41,27 @@ __all__ = [
     "get_calibration_file",
     "read_calibration_file",
 ]
+
+STEPPER_TABLE_FOR_FILE = {
+    "hermes_EEA_l0_2026161-132236_v0.bin": {
+        "apid": 260,
+        "stepper_table": "ptb_esastepped_undeflected_stepper.txt",
+    },
+    "hermes_EEA_l0_2026161-132237_v0.bin": {
+        "apid": 260,
+        "stepper_table": "ptb_esastepped_undeflected_stepper.txt",
+    },
+    "hermes_EEA_hk_l0_2026161-132237_v0.bin": {"apid": 265, "stepper_table": None},
+    "hermes_EEA_hk_l0_2026023-000000_v0.bin": {"apid": 265, "stepper_table": None},
+    "hermes_EEA_l0_2026023-000000_v0.bin": {
+        "apid": 260,
+        "stepper_table": "ptb_esastepped_undeflected_stepper.txt",
+    },
+    "hermes_EEA_l0_2023042-000000_v0.bin": {
+        "apid": 260,
+        "stepper_table": "flight_stepper.txt",
+    },
+}
 
 
 def _peek_apid(data_filename: Path) -> int:
@@ -52,6 +74,45 @@ def _peek_apid(data_filename: Path) -> int:
         raise ValueError(f"{data_filename} is too short to contain a CCSDS primary header.")
     first_word = struct.unpack(">H", header)[0]
     return first_word & 0x07FF
+
+
+
+
+def get_stepper_table_for_file(data_filename) -> "StepperTable":
+    """Look up and build the StepperTable that applies to a given L0 input file.
+
+    Falls back to `hermes_eea.FirstStepperTable` (with a warning) for files not registered
+    in STEPPER_TABLE_FOR_FILE, rather than failing outright.
+
+    Parameters
+    ----------
+    data_filename: str or Path
+        The L0 input filename (only the basename is used for the lookup).
+    """
+    name = os.path.basename(str(data_filename))
+    entry = STEPPER_TABLE_FOR_FILE.get(name)
+    if entry is None:
+        log.warning(
+            f"No stepper table registered for input file {name!r}; "
+            f"falling back to hermes_eea.FirstStepperTable={hermes_eea.FirstStepperTable!r}."
+        )
+        return StepperTable(hermes_eea.FirstStepperTable)
+    stepper_table_name = entry["stepper_table"]
+    if stepper_table_name is None:
+        return None
+    return StepperTable(stepper_table_name)
+
+
+def get_apid_for_file(data_filename) -> int:
+    """Look up the CCSDS APID that applies to a given registered L0 input file."""
+    name = os.path.basename(str(data_filename))
+    try:
+        return STEPPER_TABLE_FOR_FILE[name]["apid"]
+    except KeyError:
+        raise KeyError(
+            f"No APID is registered for input file {name!r}. "
+            f"Known files: {sorted(STEPPER_TABLE_FOR_FILE)}"
+        )
 
 
 def process_file(data_filename: Path) -> list:
@@ -97,8 +158,8 @@ def process_file(data_filename: Path) -> list:
 
     # Determine the APID (and, for science data, the StepperTable) from the file itself.
     apid = _peek_apid(data_filename)
-    # So far there is only one StepperTable in use for science data.
-    stepper = StepperTable(hermes_eea.FirstStepperTable) if apid == 260 else None
+    
+    stepper = get_stepper_table_for_file(data_filename) if apid == 260 else None
 
     # Calibrate the Input File
     calibrated_file = calibrate_file(data_filename, destination_dir, stepper, apid)
@@ -112,7 +173,7 @@ def process_file(data_filename: Path) -> list:
     return output_files
 
 
-def calibrate_file(data_filename: Path, destination_dir: Path) -> Path:
+def calibrate_file(data_filename: Path, destination_dir, stepper: StepperTable = None, apid: int = None) -> Path:
     """
     Given an input data file, raise it to the next level
     (e.g. level 0 to level 1, level 1 to quicklook) it and return a new file.
