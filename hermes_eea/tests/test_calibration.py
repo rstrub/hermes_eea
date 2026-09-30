@@ -1,4 +1,5 @@
 import pytest
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -15,7 +16,7 @@ from spacepy import pycdf
 from hermes_core import log
 import numpy as np
 from hermes_eea.Stepper.StepperTable import StepperTable
-from hermes_eea.tests.conftest import STEPPER_TABLE_FOR_FILE, get_stepper_table_for_file, get_apid_for_file
+from hermes_eea.calibration.calibration import STEPPER_TABLE_FOR_FILE, get_stepper_table_for_file, get_apid_for_file
 
 @pytest.fixture( scope="session", params=list(STEPPER_TABLE_FOR_FILE), ids=lambda bin_name: bin_name,)  # this is a pytest fixture
 def small_level0_file(request):
@@ -62,20 +63,9 @@ def test_process_file(small_level0_file):
             shutil.copy(small_level0_file, temp_test_file_path)
             # Process the File
             output_files = calib.process_file(temp_test_file_path)
-<<<<<<< HEAD
             verify_l1a(small_level0_file, output_files[0])
             # HK verification, once it exists. Copy out for inspection in the meantime.
             shutil.copy(output_files[0], "/workspaces/hermes_eea/hermes_eea/data")
-=======
-
-            for f in output_files:
-                assert isinstance(f, Path)
-            assert output_files[0].stat().st_size > 0
-
-            # Ensure the file is closed before attempting to delete it
-            with pycdf.CDF(str(output_files[0])) as cdf:
-                assert len(cdf["Epoch"][:]) == 18
->>>>>>> main
 
     # Ensure the temporary directory is cleaned up even if an exception is raised (needed for Windows)
     except PermissionError:
