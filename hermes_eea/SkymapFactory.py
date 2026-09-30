@@ -54,37 +54,52 @@ def skymap_factory(l0_cdf, stepper, myEEA):
     )
 
     epochs = ccsds_to_cdf_time.help_convert_eaa(l0_cdf)
-    step_values = manage_stepper_table_energies_and_angles(beginning_packets, stepper, 0, len(epochs))
+    n_packets_total = len(epochs)
+
+    long_sweeps, short_sweeps = find_irregular_sweeps(beginning_packets, stepper, n_packets_total)
+    if long_sweeps:
+        log.warning(
+            f"{len(long_sweeps)} irregular sweep(s) are longer than len(stepper.energies)="
+            f"{len(stepper.energies)} packets (sweep_index: actual_length): {long_sweeps}"
+        )
+    if short_sweeps:
+        log.warning(
+            f"{len(short_sweeps)} irregular sweep(s) are shorter than len(stepper.energies)="
+            f"{len(stepper.energies)} packets (sweep_index: actual_length): {short_sweeps}"
+        )
+
     # This is done this way so  that we can send this package to multiprocessor like:
     #   with Pool(n_pool) as p:
     #             b = p.starmap(do_EEA__packet, package)
     package = []
     # ccsds coarse+fine -> cdf-epoch times.
-    try:
-        for ptr in range(0, len(beginning_packets) + 1):
-            package.append(
-                (
-                    l0_cdf["ACCUM"][
-                        beginning_packets[ptr] : beginning_packets[ptr + 1]
-                    ],  # the skymap
-                    l0_cdf["COUNTER1"][
-                        beginning_packets[ptr] : beginning_packets[
-                            ptr + 1
-                        ]  # e.g. l0_cdf["COUNTER1"][47] = 12
-                    ],  # np.sum(l0_cdf["ACCUM"][47]) = 11
-                    l0_cdf["COUNTER2"][
-                        beginning_packets[ptr] : beginning_packets[
-                            ptr + 1
-                        ]  # l0_cdf["COUNTER2"][47] = 12
-                    ],
-                    epochs[beginning_packets[ptr] : beginning_packets[ptr + 1]],
-                    step_values['energy'],  # from the stepper table
-                    step_values['elevation_angle'],  # from the stepper table
-                    ptr,
-                )
+    for ptr in range(len(beginning_packets)):
+        start_idx = beginning_packets[ptr]
+        finish_idx = beginning_packets[ptr + 1] if ptr + 1 < len(beginning_packets) else n_packets_total
+        # recomputed per sweep so each sweep's own step count/range is used,
+        # rather than reusing whatever length the first sweep happened to have
+        try:
+            step_values = manage_stepper_table_energies_and_angles(beginning_packets, stepper, ptr, n_packets_total)
+        except IndexError:
+            # lost/missing packets mid-stream can confuse STEP==0 boundary detection,
+            # producing an abnormally long "sweep" that overruns the stepper table;
+            # skip just this one sweep instead of aborting all remaining sweeps
+            log.warning(
+                f"Sweep {ptr} ({finish_idx - start_idx} packets) exceeds the stepper table's "
+                "length, likely due to lost/missing packets; skipping this sweep."
             )
-    except IndexError:
-        log.info("Finished last interval")
+            continue
+        package.append(
+            (
+                l0_cdf["ACCUM"][start_idx:finish_idx],  # the skymap
+                l0_cdf["COUNTER1"][start_idx:finish_idx],  # e.g. l0_cdf["COUNTER1"][47] = 12
+                l0_cdf["COUNTER2"][start_idx:finish_idx],  # l0_cdf["COUNTER2"][47] = 12
+                epochs[start_idx:finish_idx],
+                step_values['energy'],  # from the stepper table
+                step_values['elevation_angle'],  # from the stepper table
+                ptr,
+            )
+        )
 
     result = []
     for pckt in package:
@@ -132,6 +147,31 @@ def do_eea_packet(counts, cnt1, cnt2, epoch, energy_vals, deflection_vals, ith_F
     return_package["counter2"]    = stuff_stepsize(cnt2, (MAX_STEPS), INTFILL)         # number of counts in each packet
 
     return return_package
+
+
+def find_irregular_sweeps(beginning_packets, stepper, n_packets_total):
+    """
+    Check every sweep's packet count (gap between consecutive beginning_packets
+    entries) against len(stepper.energies), the number of steps a full sweep should have.
+
+    Returns
+    -------
+    (long_sweeps, short_sweeps) - each a dict mapping sweep_index -> actual_length,
+    for sweeps longer than, respectively shorter than, len(stepper.energies).
+    """
+    expected_len = len(stepper.energies)
+    long_sweeps = {}
+    short_sweeps = {}
+    for ptr in range(len(beginning_packets)):
+        if ptr + 1 < len(beginning_packets):
+            actual_len = beginning_packets[ptr + 1] - beginning_packets[ptr]
+        else:
+            actual_len = n_packets_total - beginning_packets[ptr]
+        if actual_len > expected_len:
+            long_sweeps[ptr] = actual_len
+        elif actual_len < expected_len:
+            short_sweeps[ptr] = actual_len
+    return long_sweeps, short_sweeps
 
 
 def manage_stepper_table_energies_and_angles(beginning_packets, stepper, packet, npackets):
