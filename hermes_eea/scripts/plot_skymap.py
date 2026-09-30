@@ -14,7 +14,11 @@ from hermes_eea.io.EEA import REAL4FILL
 def load_avg_skymap(cdf_path):
     """
     Average `hermes_eea_accum` over all sweeps, dropping the MAX_STEPS
-    fill-value padding (steps beyond the stepper table's real length).
+    fill-value padding (steps beyond each sweep's own real length).
+
+    Sweeps can have different real step counts (e.g. a partial first sweep vs.
+    later full sweeps), so the fill mask is computed per sweep rather than from
+    a single sweep's energy profile.
 
     Returns
     -------
@@ -22,10 +26,14 @@ def load_avg_skymap(cdf_path):
     """
     with pycdf.CDF(str(cdf_path)) as cdf:
         accum = np.array(cdf["hermes_eea_accum"][:])  # (n_sweeps, MAX_STEPS, N_AZIMUTH)
-        energies = np.array(cdf["hermes_eea_energy_profile"][0])  # (MAX_STEPS,)
+        energies = np.array(cdf["hermes_eea_energy_profile"][:])  # (n_sweeps, MAX_STEPS)
 
-    n_real_steps = int(np.sum(energies != REAL4FILL))
+    real_step_mask = energies != REAL4FILL  # (n_sweeps, MAX_STEPS)
+    n_real_steps = int(real_step_mask.sum(axis=1).max())  # widest sweep sets the trimmed width
+
     accum = accum[:, :n_real_steps, :]
+    real_step_mask = real_step_mask[:, :n_real_steps]
+    accum = np.where(real_step_mask[:, :, np.newaxis], accum, np.nan)  # mask fill per sweep
     accum = np.where(accum == REAL4FILL, np.nan, accum)  # last, incomplete sweep may still hold fill
     avg_counts = np.nanmean(accum, axis=0)  # (n_real_steps, N_AZIMUTH)
     return avg_counts
