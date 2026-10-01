@@ -8,17 +8,17 @@ from hermes_eea.calibration.calibration import (
 )
 
 TEST_PROCESSING = [
-   "boot_packet.txt",
+   "ptb_esastepped_undeflected_stepper.txt",
    "hermes_EEA_l0_2026161-132236_v0.bin",
-   "boot_packet.txt",
+   "ptb_esastepped_undeflected_stepper.txt",
    "hermes_EEA_l0_2026161-132237_v0.bin",
-   "boot_packet.txt",
+   "ptb_esastepped_undeflected_stepper.csv",
    "hermes_EEA_hk_l0_2026161-132237_v0.bin",
    "boot_packet.txt",
    "hermes_EEA_hk_l0_2026023-000000_v0.bin",
-   "boot_packet.txt",
+   "flight_stepper.",
    "hermes_EEA_l0_2026023-000000_v0.bin",
-   "boot_packet.txt",
+   "flight_stepper.txt",
    "hermes_EEA_l0_2023042-000000_v0.bin"
       
 ]

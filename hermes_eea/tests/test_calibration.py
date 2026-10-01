@@ -9,18 +9,27 @@ import hermes_eea
 from hermes_eea.calibration.calibration import _peek_apid
 from hermes_eea.io import read_ccsds
 import hermes_eea.calibration as calib
-from hermes_eea import _data_directory, FirstStepperTable 
+from hermes_eea import _data_directory, FirstStepperTable , _calibration_directory
 from hermes_core.util.util import create_science_filename, parse_science_filename
 import sys
 from spacepy import pycdf
 from hermes_core import log
 import numpy as np
 from hermes_eea.Stepper.StepperTable import StepperTable
-from hermes_eea.calibration.calibration import STEPPER_TABLE_FOR_FILE, get_stepper_table_for_file, get_apid_for_file
+from hermes_eea.calibration.calibration import STEPPER_TABLE_FOR_FILE, get_stepper_table_for_file, get_apid_for_file, CURRENT_STEPPER_TABLE_FILE
+from hermes_eea.tests.conftest import TEST_PROCESSING
 
-@pytest.fixture( scope="session", params=list(STEPPER_TABLE_FOR_FILE), ids=lambda bin_name: bin_name,)  # this is a pytest fixture
+# boot_packet.txt entries in TEST_PROCESSING contain just the stepper table filename to use for
+# whichever science files follow, until the next boot_packet.txt; persisted here to simulate the
+# instrument's real behavior of applying the last-commanded stepper table, not a per-file lookup.
+
+
+@pytest.fixture( scope="session", params=list(TEST_PROCESSING), ids=lambda bin_name: bin_name,)  # this is a pytest fixture
 def small_level0_file(request):
-    return Path(os.path.join(_data_directory, request.param))
+    if "txt" in request.param or "csv" in request.param:
+        return Path(os.path.join(_calibration_directory, request.param))
+    else:
+        return Path(os.path.join(_data_directory, request.param))
 
 
 def test_read_ccsdspy(small_level0_file):
@@ -34,6 +43,8 @@ def test_read_ccsdspy(small_level0_file):
     -------
 
     """
+    if small_level0_file.name == "boot_packet.txt":
+        pytest.skip("boot_packet.txt is not a CCSDS packet file")
     apid = get_apid_for_file(small_level0_file)
     # HK and science packets use different fixed-length layouts.
     is_hk = apid == 265
@@ -80,9 +91,8 @@ def verify_l1a(data_filename, output_l1a):
     """
     # Determine the APID (and, for science data, the StepperTable) from the file itself.
     apid = _peek_apid(data_filename)
-    # So far there is only one StepperTable in use for science data.
-    stepper = StepperTable(hermes_eea.FirstStepperTable) if apid == 260 else None
-    
+    # Fall back to the default table if the caller didn't already resolve one (e.g. via boot packet).
+
     from hermes_eea.io.EEA import REAL4FILL, EPOCHTIMEFILL, INTFILL
     assert os.path.getsize(output_l1a) > 275000
     with pycdf.CDF(str(output_l1a)) as cdf:
@@ -112,6 +122,7 @@ def verify_l1a(data_filename, output_l1a):
             if "accum" in var:
                 skymap = var
 
+            stepper = get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE) 
             assert cdf[var].shape[0] == n_sweeps
             if len(cdf[var].shape) >= 2 and "INT" in str(cdf[var]):
                 print(var)

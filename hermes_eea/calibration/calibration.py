@@ -41,7 +41,7 @@ __all__ = [
     "get_calibration_file",
     "read_calibration_file",
 ]
-
+CURRENT_STEPPER_TABLE_FILE = Path( "boot_packet.txt")
 STEPPER_TABLE_FOR_FILE = {
     "hermes_EEA_l0_2026161-132236_v0.bin": {
         "apid": 260,
@@ -79,27 +79,10 @@ def _peek_apid(data_filename: Path) -> int:
 
 
 def get_stepper_table_for_file(data_filename) -> "StepperTable":
-    """Look up and build the StepperTable that applies to a given L0 input file.
-
-    Falls back to `hermes_eea.FirstStepperTable` (with a warning) for files not registered
-    in STEPPER_TABLE_FOR_FILE, rather than failing outright.
-
-    Parameters
-    ----------
-    data_filename: str or Path
-        The L0 input filename (only the basename is used for the lookup).
+    """Build the StepperTable last selected by a boot/config packet, as recorded in
+    CURRENT_STEPPER_TABLE_FILE, rather than looking it up by data_filename.
     """
-    name = os.path.basename(str(data_filename))
-    entry = STEPPER_TABLE_FOR_FILE.get(name)
-    if entry is None:
-        log.warning(
-            f"No stepper table registered for input file {name!r}; "
-            f"falling back to hermes_eea.FirstStepperTable={hermes_eea.FirstStepperTable!r}."
-        )
-        return StepperTable(hermes_eea.FirstStepperTable)
-    stepper_table_name = entry["stepper_table"]
-    if stepper_table_name is None:
-        return None
+    stepper_table_name = CURRENT_STEPPER_TABLE_FILE.read_text().strip()
     return StepperTable(stepper_table_name)
 
 
@@ -158,8 +141,15 @@ def process_file(data_filename: Path) -> list:
 
     # Determine the APID (and, for science data, the StepperTable) from the file itself.
     apid = _peek_apid(data_filename)
-    
-    stepper = get_stepper_table_for_file(data_filename) if apid == 260 else None
+    """
+     small_level0_file is parametrized over TEST_PROCESSING in order: a "boot_packet.txt"
+       entry persists the stepper table name for the science files that follow, until the
+       next boot packet.
+    """
+    if "txt" in data_filename.name or "csv" in data_filename.name:
+           CURRENT_STEPPER_TABLE_FILE.write_text(data_filename.name)
+           return
+    stepper = get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE) if apid == 260 else None
 
     # Calibrate the Input File
     calibrated_file = calibrate_file(data_filename, destination_dir, stepper, apid)
