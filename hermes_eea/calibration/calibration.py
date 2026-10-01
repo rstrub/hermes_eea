@@ -139,18 +139,21 @@ def process_file(data_filename: Path) -> list:
     # Get the Directory of the File
     destination_dir = data_filename.parent
 
-    # Determine the APID (and, for science data, the StepperTable) from the file itself.
-    apid = _peek_apid(data_filename)
     """
      small_level0_file is parametrized over TEST_PROCESSING in order: a "boot_packet.txt"
        entry persists the stepper table name for the science files that follow, until the
        next boot packet.
     """
-    if "txt" in data_filename.name or "csv" in data_filename.name:
+   
+    # Determine the APID (and, for science data, the StepperTable) from the file itself.
+    if is_binary_file(data_filename):
+        apid = _peek_apid(data_filename)
+        stepper = get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE) if apid == 260 else None
+    else:    
+    
            CURRENT_STEPPER_TABLE_FILE.write_text(data_filename.name)
            return
-    stepper = get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE) if apid == 260 else None
-
+       
     # Calibrate the Input File
     calibrated_file = calibrate_file(data_filename, destination_dir, stepper, apid)
     output_files.append(calibrated_file)
@@ -537,3 +540,22 @@ def read_calibration_file(calib_filename: Path):
     for line in lines:
         calib.energies.append(int(line[8:10], 16))
         calib.deflections.append(int(line[10:12], 16))
+
+def is_binary_file(file_path, block_size=1024):
+    """Returns True if the file contains binary data, False if it is clean ASCII."""
+    try:
+        with open(file_path, 'rb') as f:
+            block = f.read(block_size)
+            
+            # A null byte is a definitive indicator of a binary format
+            if b'\x00' in block:
+                return True
+                
+            # If any byte is outside the valid ASCII range (0-127), it's binary
+            if any(byte > 127 for byte in block):
+                return True
+                
+            return False
+    except IOError:
+        print(f"Error: Could not read file {file_path}")
+        return False

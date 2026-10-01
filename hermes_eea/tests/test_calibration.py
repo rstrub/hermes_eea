@@ -18,6 +18,7 @@ import numpy as np
 from hermes_eea.Stepper.StepperTable import StepperTable
 from hermes_eea.calibration.calibration import STEPPER_TABLE_FOR_FILE, get_stepper_table_for_file, get_apid_for_file, CURRENT_STEPPER_TABLE_FILE
 from hermes_eea.tests.conftest import TEST_PROCESSING
+from hermes_eea.calibration.calibration import is_binary_file
 
 # boot_packet.txt entries in TEST_PROCESSING contain just the stepper table filename to use for
 # whichever science files follow, until the next boot_packet.txt; persisted here to simulate the
@@ -43,8 +44,10 @@ def test_read_ccsdspy(small_level0_file):
     -------
 
     """
-    if small_level0_file.name == "boot_packet.txt":
-        pytest.skip("boot_packet.txt is not a CCSDS packet file")
+    if not is_binary_file(small_level0_file):
+        pytest.skip("ASCII files are not supported in this test") 
+        
+
     apid = get_apid_for_file(small_level0_file)
     # HK and science packets use different fixed-length layouts.
     is_hk = apid == 265
@@ -74,9 +77,9 @@ def test_process_file(small_level0_file):
             shutil.copy(small_level0_file, temp_test_file_path)
             # Process the File
             output_files = calib.process_file(temp_test_file_path)
-            verify_l1a(small_level0_file, output_files[0])
-            # HK verification, once it exists. Copy out for inspection in the meantime.
-            shutil.copy(output_files[0], "/workspaces/hermes_eea/hermes_eea/data")
+            if is_binary_file(temp_test_file_path):
+                verify_l1a(small_level0_file, output_files[0])
+
 
     # Ensure the temporary directory is cleaned up even if an exception is raised (needed for Windows)
     except PermissionError:
@@ -144,6 +147,7 @@ def verify_l1a(data_filename, output_l1a):
             # assert abs(cntsum - total) <= diff
         except NameError as e:
             log.error(f"Error verifying L1A file {output_l1a}: {e} skymap not defined")
+            log.error("If hk in filename then it should fail")
 
     shutil.copy(output_l1a, "/workspaces/hermes_eea/hermes_eea/data")
 
