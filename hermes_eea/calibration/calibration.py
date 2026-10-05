@@ -88,14 +88,12 @@ def get_stepper_table_for_file(data_filename) -> "StepperTable":
 
 def get_apid_for_file(data_filename) -> int:
     """Look up the CCSDS APID that applies to a given registered L0 input file."""
-    name = os.path.basename(str(data_filename))
     try:
-        return STEPPER_TABLE_FOR_FILE[name]["apid"]
-    except KeyError:
-        raise KeyError(
-            f"No APID is registered for input file {name!r}. "
-            f"Known files: {sorted(STEPPER_TABLE_FOR_FILE)}"
-        )
+        return _peek_apid(data_filename)
+    except OSError as err:
+        raise OSError(f"Could not read input file {data_filename!r}: {err}") from err
+    except ValueError as err:
+        raise ValueError(f"Could not determine APID for input file {data_filename!r}: {err}") from err
 
 
 def process_file(data_filename: Path) -> list:

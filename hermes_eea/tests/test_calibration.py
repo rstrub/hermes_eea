@@ -57,7 +57,7 @@ def test_read_ccsdspy(small_level0_file):
     )
     result = read_ccsds(small_level0_file, pkt)
     if is_hk:
-        assert len(result["SHCOARSE"]) > 0
+        assert len(result["ANODE_V"]) > 0
     else:
         assert len(result["ACCUM"]) > 0
 
