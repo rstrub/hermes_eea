@@ -65,7 +65,8 @@ def jsonl_to_bin(
     if (packet_name is None) == (apid is None):
         raise ValueError("Specify exactly one of packet_name or apid")
 
-    sys.set_int_max_str_digits(0)  # some "contents" fields are huge integers
+    if hasattr(sys, "set_int_max_str_digits"):  # not available before Python 3.9.17/3.10.9
+        sys.set_int_max_str_digits(0)  # some "contents" fields are huge integers
 
     n_packets = 0
     timestamps_fh = open(timestamps_out, "w") if timestamps_out else None

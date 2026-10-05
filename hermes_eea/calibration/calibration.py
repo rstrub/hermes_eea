@@ -405,7 +405,7 @@ def l0_hk_data_to_cdf(data: dict, original_filename: Path, destination_dir: Path
                 meta={"CATDESC": hk_catdesc.get(field, f"HK field {field}")},
             )
         except Exception as e:
-            log.warning(f"Could not add HK field {field}: {e}")
+            raise ValueError(f"Could not add HK field {field}") from e
 
     try:
         cdf_path = hermes_eea_hk_data.save(destination_dir, True)

@@ -1,4 +1,7 @@
 N_AZIMUTH = 34
+# TODO: unresolved whether the angle profile should include all 34 ACCUM bins
+# or only 32 real azimuth bins (last 2 being pulse/overflow channels) --
+# Steve says no (32), Dan says yes (34). Keeping all 34 until clarified.
 MAX_STEPS = 256
 REAL4FILL = -1E+31
 # this large negative number is cdfepoch of 9999-12-31T23:59:59.999999999 which is the fillvalue from...Hermes/Astropy or something

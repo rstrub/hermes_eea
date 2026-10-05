@@ -149,7 +149,11 @@ def verify_l1a(data_filename, output_l1a):
             log.info(f"Error verifying L1A file {output_l1a}: {e} skymap not defined")
             log.info("If hk in filename then it should fail")
 
-    shutil.copy(output_l1a, "/workspaces/hermes_eea/hermes_eea/data")
+    # best-effort local copy for manual inspection; _data_directory resolves regardless of cwd
+    try:
+        shutil.copy(output_l1a, _data_directory)
+    except OSError as e:
+        log.info(f"Could not save a local debug copy of {output_l1a}: {e}")
 
 
 def cleanup_retry(directory):

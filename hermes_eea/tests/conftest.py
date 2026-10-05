@@ -9,6 +9,9 @@ from hermes_eea.calibration.calibration import (
 
 TEST_PROCESSING = [
    "ptb_esastepped_undeflected_stepper.txt",
+   "hermes_EEA_l0_2026161-142204_v0.bin",
+   "ptb_esastepped_undeflected_stepper.txt",
+   "flight_stepper.txt",
    "hermes_EEA_l0_2026161-132236_v0.bin",
    "ptb_esastepped_undeflected_stepper.txt",
    "hermes_EEA_l0_2026161-132237_v0.bin",

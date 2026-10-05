@@ -28,7 +28,7 @@ def _read_sci_field_catdesc() -> dict:
 # rather than decoded directly from a packet field, so they have no row in
 # hermes_EEA_sci_packet_def.csv or the stepper table files.
 DERIVED_SPECTRA_CATDESC = {
-    "hermes_eea_settle_step_times": "Settle for Each Step",
+    "hermes_eea_step_times": "Raw Per-Step Packet Time",
     "hermes_eea_energy_profile": "Energy Profile",
     "hermes_eea_deflection_angles": "Deflection Angles",
 }
@@ -88,11 +88,11 @@ class Hermes_EEA_Data_Processor:
         self.multiple_spectra = NDCollection(
             [
                 (
-                    "hermes_eea_settle_step_times",
+                    "hermes_eea_step_times",
                     NDCube(
                         data=np.array(self.EEA.usec),
                         wcs=WCS(naxis=2),
-                        meta={"CATDESC": DERIVED_SPECTRA_CATDESC["hermes_eea_settle_step_times"]},
+                        meta={"CATDESC": DERIVED_SPECTRA_CATDESC["hermes_eea_step_times"]},
                         unit=astropy_units.s,
                     ),
                 ),

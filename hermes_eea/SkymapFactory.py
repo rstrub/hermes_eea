@@ -137,7 +137,7 @@ def do_eea_packet(counts, cnt1, cnt2, epoch, energy_vals, deflection_vals, ith_F
     return_package["counts"][0:counts.shape[0], 0:counts.shape[1]] = counts
 
     #  Since we might have several different stepper tables, we aren't putting them into separate
-    #  energy/deflection dimenstionxs
+    #  energy/deflection dimensions
     return_package["energies"]    = stuff_stepsize(energy_vals, (MAX_STEPS), REAL4FILL)  # a static thing for each stepper table
 
     return_package["deflections"] = stuff_stepsize(deflection_vals, (MAX_STEPS), REAL4FILL)  # a static thing for each stepper table
