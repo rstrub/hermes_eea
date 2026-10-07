@@ -149,8 +149,7 @@ def process_file(data_filename: Path) -> list:
         stepper = get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE) if apid == 260 else None
     else:    
         store_boot_packet(data_filename)
-        
-        return
+        return output_files
        
     # Calibrate the Input File
     calibrated_file = calibrate_file(data_filename, destination_dir, stepper, apid)
@@ -191,10 +190,12 @@ def calibrate_file(data_filename: Path, destination_dir, stepper: StepperTable =
     if (
         file_metadata["instrument"] == hermes_eea.INST_NAME
         and apid == 260
+        and file_metadata["level"] == "l0"
     ):
         if stepper is None:
-            log.info(f"No StepperTable provided for level-0 science file {data_filename}.")
-            pass
+            # Note. To date a boot packet file will not make it here
+            raise ValueError(f"No StepperTable provided for level-0 science file {data_filename}.")
+        
           
         # call CCSDSPY to parse our packets.
         data = parse_l0_sci_packets(data_filename)
@@ -582,5 +583,8 @@ def is_boot_packet(file_path):
     return is_ascii_file(file_path)
 
 def store_boot_packet(file_path):
-    """Stores the boot packet filename for later use."""
+    """Stores the boot packet filename for later use.
+    currently stubbed to write the name of the current stepper to 
+    a file called boot_packet.txt"""
+    
     CURRENT_STEPPER_TABLE_FILE.write_text(file_path.name)   

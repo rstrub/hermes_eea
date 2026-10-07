@@ -2,7 +2,15 @@ import numpy as np
 from hermes_core import log
 from hermes_eea.io import EEA
 from hermes_eea.util.time import ccsds_to_cdf_time
-from hermes_eea.io.EEA import MAX_STEPS, N_AZIMUTH, REAL4FILL, EPOCHTIMEFILL, INTFILL
+from hermes_eea.io.EEA import (
+    MAX_STEPS,
+    N_AZIMUTH,
+    PULSE_A_CHANNEL,
+    PULSE_B_CHANNEL,
+    REAL4FILL,
+    EPOCHTIMEFILL,
+    INTFILL,
+)
 
 
 def skymap_factory(l0_cdf, stepper, myEEA):
@@ -79,7 +87,9 @@ def skymap_factory(l0_cdf, stepper, myEEA):
         # recomputed per sweep so each sweep's own step count/range is used,
         # rather than reusing whatever length the first sweep happened to have
         try:
-            step_values = manage_stepper_table_energies_and_angles(beginning_packets, stepper, ptr, n_packets_total)
+            step_values = manage_stepper_table_energies_and_angles(
+                beginning_packets, stepper, ptr, n_packets_total, l0_cdf["STEP"]
+            )
         except IndexError:
             # lost/missing packets mid-stream can confuse STEP==0 boundary detection,
             # producing an abnormally long "sweep" that overruns the stepper table;
@@ -89,9 +99,16 @@ def skymap_factory(l0_cdf, stepper, myEEA):
                 "length, likely due to lost/missing packets; skipping this sweep."
             )
             continue
+        # ACCUM carries 34 raw channels per packet: the first N_AZIMUTH (32) are real
+        # sky-map azimuth bins; the last two are TOF-ASIC overflow counters (see
+        # hermes_eea.io.EEA PULSE_A_CHANNEL/PULSE_B_CHANNEL), not azimuth measurements,
+        # so they're split out here rather than copied into the skymap as if they were.
+        accum_slice = l0_cdf["ACCUM"][start_idx:finish_idx]
         package.append(
             (
-                l0_cdf["ACCUM"][start_idx:finish_idx],  # the skymap
+                accum_slice[:, :N_AZIMUTH],  # the skymap: 32 real azimuth bins
+                accum_slice[:, PULSE_A_CHANNEL],  # TOF channel A overflow counter
+                accum_slice[:, PULSE_B_CHANNEL],  # TOF channel B overflow counter
                 l0_cdf["COUNTER1"][start_idx:finish_idx],  # e.g. l0_cdf["COUNTER1"][47] = 12
                 l0_cdf["COUNTER2"][start_idx:finish_idx],  # l0_cdf["COUNTER2"][47] = 12
                 epochs[start_idx:finish_idx],
@@ -109,7 +126,7 @@ def skymap_factory(l0_cdf, stepper, myEEA):
     myEEA.populate(result)
 
 
-def do_eea_packet(counts, cnt1, cnt2, epoch, energy_vals, deflection_vals, ith_FSmap):
+def do_eea_packet(counts, pulse_a, pulse_b, cnt1, cnt2, epoch, energy_vals, deflection_vals, ith_FSmap):
     """
     This function populates each sweep, or pass through
     all of the energies and deflections designated by the stepper table
@@ -117,7 +134,9 @@ def do_eea_packet(counts, cnt1, cnt2, epoch, energy_vals, deflection_vals, ith_F
     Parameters
     ----------
     stepperTableCounter - n_deflections * n_energies
-    counts              - the structured arrays returned by CCSDSPY
+    counts              - the structured arrays returned by CCSDSPY, 32 real azimuth bins only
+    pulse_a             - TOF channel A overflow counter (raw ACCUM bin 33), one value per packet
+    pulse_b             - TOF channel B overflow counter (raw ACCUM bin 32), one value per packet
     cnt1                - the sum of this sweep's accum
     cnt2                - same as above but +1...not clear yet
     epoch               - CDF Formatted time for every single measurement, [0] is the time for the sweep/packet
@@ -135,6 +154,9 @@ def do_eea_packet(counts, cnt1, cnt2, epoch, energy_vals, deflection_vals, ith_F
     
     return_package["counts"] = np.full((MAX_STEPS, N_AZIMUTH), REAL4FILL)
     return_package["counts"][0:counts.shape[0], 0:counts.shape[1]] = counts
+
+    return_package["pulse_a"] = stuff_stepsize(pulse_a, (MAX_STEPS), INTFILL)  # TOF channel A overflow counter, one per packet
+    return_package["pulse_b"] = stuff_stepsize(pulse_b, (MAX_STEPS), INTFILL)  # TOF channel B overflow counter, one per packet
 
     #  Since we might have several different stepper tables, we aren't putting them into separate
     #  energy/deflection dimensions
@@ -174,7 +196,7 @@ def find_irregular_sweeps(beginning_packets, stepper, n_packets_total):
     return long_sweeps, short_sweeps
 
 
-def manage_stepper_table_energies_and_angles(beginning_packets, stepper, packet, npackets):
+def manage_stepper_table_energies_and_angles(beginning_packets, stepper, packet, npackets, steps):
     """
     I'm doing it this way mostly to be able to handle the last,
     incomplete sweep"""
@@ -196,9 +218,12 @@ def manage_stepper_table_energies_and_angles(beginning_packets, stepper, packet,
     except (TypeError, IndexError):
         pass  # we are in last incomplete packet
     
-    # this worked with original stepper table and the new one 
+    # index the stepper table by each packet's own STEP value, not its position
+    # within the sweep, so a dropped packet (which shortens the retained sweep
+    # but doesn't shift the surviving packets' STEP values) doesn't misalign
+    # every subsequent packet's energy/deflection assignment
     for i in range(beginning_packets[packet], finish):
-        step_in_sweep = i - beginning_packets[packet]  # table row is relative to the sweep start, not the file
+        step_in_sweep = steps[i]
         stepvalues['energy'].append(stepper.energies[step_in_sweep])
         stepvalues['elevation_angle'].append(stepper.deflections[step_in_sweep])
     stepvalues['energy'] = np.array( stepvalues['energy'] ) 

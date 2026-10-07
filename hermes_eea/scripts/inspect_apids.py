@@ -4,8 +4,8 @@ Optionally extract just one APID's packets into a new file.
 
 Usage
 -----
-    python -m hermes_eea.util.inspect_apids path/to/file.bin
-    python -m hermes_eea.util.inspect_apids path/to/file.bin --apid 260 --output only_260.bin
+    python -m hermes_eea.scripts.inspect_apids path/to/file.bin
+    python -m hermes_eea.scripts.inspect_apids path/to/file.bin --apid 260 --output only_260.bin
 """
 
 import argparse

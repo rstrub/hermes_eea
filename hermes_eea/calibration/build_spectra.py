@@ -31,6 +31,8 @@ DERIVED_SPECTRA_CATDESC = {
     "hermes_eea_step_times": "Raw Per-Step Packet Time",
     "hermes_eea_energy_profile": "Energy Profile",
     "hermes_eea_deflection_angles": "Deflection Angles",
+    "hermes_eea_pulse_a": "TOF Channel A Overflow Counter (raw ACCUM bin 33)",
+    "hermes_eea_pulse_b": "TOF Channel B Overflow Counter (raw ACCUM bin 32)",
 }
 
 
@@ -138,6 +140,24 @@ class Hermes_EEA_Data_Processor:
                         data=np.array(self.EEA.Counter2),
                         wcs=WCS(naxis=2),
                         meta={"CATDESC": catdesc["COUNTER2"]},
+                        unit=astropy_units.dimensionless_unscaled,
+                    ),
+                ),
+                (
+                    "hermes_eea_pulse_a",
+                    NDCube(
+                        data=np.array(self.EEA.PulseA),
+                        wcs=WCS(naxis=2),
+                        meta={"CATDESC": DERIVED_SPECTRA_CATDESC["hermes_eea_pulse_a"]},
+                        unit=astropy_units.dimensionless_unscaled,
+                    ),
+                ),
+                (
+                    "hermes_eea_pulse_b",
+                    NDCube(
+                        data=np.array(self.EEA.PulseB),
+                        wcs=WCS(naxis=2),
+                        meta={"CATDESC": DERIVED_SPECTRA_CATDESC["hermes_eea_pulse_b"]},
                         unit=astropy_units.dimensionless_unscaled,
                     ),
                 ),

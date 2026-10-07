@@ -7,9 +7,9 @@ Reuses `jsonl_to_bin` to do the actual packet extraction.
 
 Usage
 -----
-    python -m hermes_eea.util.make_test_bin log_0.jsonl
-    python -m hermes_eea.util.make_test_bin log_0.jsonl --max-packets 500 --version 1
-    python -m hermes_eea.util.make_test_bin log_0.jsonl --time 2026001-000000 --output-dir hermes_eea/data
+    python -m hermes_eea.scripts.make_test_bin log_0.jsonl
+    python -m hermes_eea.scripts.make_test_bin log_0.jsonl --max-packets 500 --version 1
+    python -m hermes_eea.scripts.make_test_bin log_0.jsonl --time 2026001-000000 --output-dir hermes_eea/data
 """
 
 import argparse
