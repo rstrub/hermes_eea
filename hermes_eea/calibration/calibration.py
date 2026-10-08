@@ -476,7 +476,7 @@ def l0_sci_data_to_cdf(stepper, data: dict, original_filename: Path, destination
         #    [lib.tt2000_to_datetime(e) for e in myEEA.Epoch[0:10]]
         # )
 
-        n_packets = len(myEEA.Epoch)
+        n_sweeps = len(myEEA.Epoch)
 
         # https://hermes-core.readthedocs.io/en/latest/user-guide/reading_writing_data.html
         # https://hermes-core.readthedocs.io/en/latest/generated/api/hermes_core.timedata.HermesData.html#hermes_core.timedata.HermesData

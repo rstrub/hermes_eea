@@ -55,4 +55,4 @@ class EEA:
             self.EnergyLabels.append(self.append("energies", record))
             self.Counter1.append(record["counter1"])
             self.Counter2.append(record["counter2"])
-            # no longer doing stats for abstract: self.stats.append(record["stats"])
+            
