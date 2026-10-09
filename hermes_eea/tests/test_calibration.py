@@ -16,7 +16,12 @@ from spacepy import pycdf
 from hermes_core import log
 import numpy as np
 from hermes_eea.Stepper.StepperTable import StepperTable
-from hermes_eea.calibration.calibration import STEPPER_TABLE_FOR_FILE, get_stepper_table_for_file, get_apid_for_file, CURRENT_STEPPER_TABLE_FILE
+from hermes_eea.calibration.calibration import (
+    APIDS,
+    get_stepper_table_for_file,
+    get_apid_for_file,
+    CURRENT_STEPPER_TABLE_FILE,
+)
 from hermes_eea.tests.conftest import TEST_PROCESSING
 from hermes_eea.calibration.calibration import is_binary_file, is_boot_packet, is_ascii_file
 
@@ -50,7 +55,7 @@ def test_read_ccsdspy(small_level0_file):
 
     apid = get_apid_for_file(small_level0_file)
     # HK and science packets use different fixed-length layouts.
-    is_hk = apid == 265
+    is_hk = apid in APIDS["HK"]
     packet_def_csv = "hermes_EEA_hk_packet_def.csv" if is_hk else "hermes_EEA_sci_packet_def.csv"
     pkt = ccsdspy.FixedLength.from_file(
         os.path.join(hermes_eea._data_directory, packet_def_csv)

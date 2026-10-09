@@ -2,7 +2,6 @@ import os
 
 from hermes_eea.Stepper.StepperTable import StepperTable
 from hermes_eea.calibration.calibration import (
-    STEPPER_TABLE_FOR_FILE,
     get_stepper_table_for_file,
     get_apid_for_file,
 )

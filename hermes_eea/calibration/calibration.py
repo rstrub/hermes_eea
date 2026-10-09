@@ -41,27 +41,13 @@ __all__ = [
     "get_calibration_file",
     "read_calibration_file",
 ]
-CURRENT_STEPPER_TABLE_FILE = Path( "boot_packet.txt")
-STEPPER_TABLE_FOR_FILE = {
-    "hermes_EEA_l0_2026161-132236_v0.bin": {
-        "apid": 260,
-        "stepper_table": "ptb_esastepped_undeflected_stepper.txt",
-    },
-    "hermes_EEA_l0_2026161-132237_v0.bin": {
-        "apid": 260,
-        "stepper_table": "ptb_esastepped_undeflected_stepper.txt",
-    },
-    "hermes_EEA_hk_l0_2026161-132237_v0.bin": {"apid": 265, "stepper_table": None},
-    "hermes_EEA_hk_l0_2026023-000000_v0.bin": {"apid": 265, "stepper_table": None},
-    "hermes_EEA_l0_2026023-000000_v0.bin": {
-        "apid": 260,
-        "stepper_table": "ptb_esastepped_undeflected_stepper.txt",
-    },
-    "hermes_EEA_l0_2023042-000000_v0.bin": {
-        "apid": 260,
-        "stepper_table": "flight_stepper.txt",
-    },
+APIDS = {
+    "HK": [265],
+    "SCIENCE": [260],
 }
+
+CURRENT_STEPPER_TABLE_FILE = Path( "boot_packet.txt")
+
 
 
 def _peek_apid(data_filename: Path) -> int:
@@ -146,7 +132,11 @@ def process_file(data_filename: Path) -> list:
     # Determine the APID (and, for science data, the StepperTable) from the file itself.
     if not is_boot_packet(data_filename):
         apid = _peek_apid(data_filename)
-        stepper = get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE) if apid == 260 else None
+        stepper = (
+            get_stepper_table_for_file(CURRENT_STEPPER_TABLE_FILE)
+            if apid in APIDS["SCIENCE"]
+            else None
+        )
     else:    
         store_boot_packet(data_filename)
         return output_files
@@ -189,7 +179,7 @@ def calibrate_file(data_filename: Path, destination_dir, stepper: StepperTable =
     # check if level 0 binary file, if so call appropriate functions
     if (
         file_metadata["instrument"] == hermes_eea.INST_NAME
-        and apid == 260
+        and apid in APIDS["SCIENCE"]
         and file_metadata["level"] == "l0"
     ):
         if stepper is None:
@@ -234,7 +224,7 @@ def calibrate_file(data_filename: Path, destination_dir, stepper: StepperTable =
         # here
         data = parse_l0_sci_packets(data_filename)
         output_filename = ql_filename
-    elif apid == 265:
+    elif apid in APIDS["HK"]:
         log.info(f"Processing HK file: {data_filename}.")
         data = parse_hk_packets(data_filename)
         output_filename = l0_hk_data_to_cdf(data, data_filename, destination_dir)
